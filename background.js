@@ -23,11 +23,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log("SITE_SELECTED response:", message.siteValue);
     CATEGORY_NEXT_ENDPOINT = `${API_BASE_URL}/category/${message.siteValue}/next`;
     CATEGORY_UNLOCK_ENDPOINT = `${API_BASE_URL}/category/${message.siteValue}/unlock`;
-    console.log("API_BASE_URL", API_BASE_URL);
     console.log("CATEGORY_NEXT_ENDPOINT", CATEGORY_NEXT_ENDPOINT);
     console.log("CATEGORY_UNLOCK_ENDPOINT", CATEGORY_UNLOCK_ENDPOINT);
   }
 });
+
 // -----------------------------------------------
 // Change according to need
 const TAB_OPEN_DELAY = 500;
@@ -176,7 +176,59 @@ let parentUrl = null;
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   try {
     switch (message.type) {
+
+      case "SITE_SELECTED":
+        console.log("SITE_SELECTED", message.site);
+        if (message.site === "bayut") {
+          console.log("Bayut selected!");
+        } else {
+          console.log("Other site selected:", message.site);
+        }
+        break;
+
+                    // ------------------ API Handler ------------------
+      case "SEND_TO_API":
+        console.log("📤 SEND_TO_API received:", {
+          endpoint: message.endpoint,
+          payloadSummary: {
+            url: message.payload?.url,
+            title: message.payload?.data?.title,
+            images: message.payload?.data?.imageUrls?.length || 0
+          }
+        });
+
+        const apiUrl = `http://localhost:8000/api${message.endpoint}`;
+        console.log("🌍 Final API URL:", apiUrl);
+
+        // IMPORTANT: use async wrapper so errors don’t kill sendResponse
+        (async () => {
+          try {
+            const response = await fetch(apiUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(message.payload),
+            });
+
+            if (!response.ok) {
+              const text = await response.text().catch(() => "");
+              throw new Error(`HTTP ${response.status} → ${text}`);
+            }
+
+            const json = await response.json();
+            console.log("✅ API Response JSON:", json);
+
+            sendResponse({ success: true, data: json });
+
+          } catch (err) {
+            console.error("❌ API FAILED →", err);
+            sendResponse({ success: false, error: err.message });
+          }
+        })();
+
+        return true; // keep channel alive
+
       // ------------------ Scraper Control ------------------
+
       case "START_SCRAPING":
         isPaused = false;
         isStopped = false;
@@ -261,23 +313,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
         return true; // keep message channel open
 
-    case "SCRAPE_SUCCESS":
-      updateProgress("scraped");
-       safeRemoveTab(sender.tab?.id);
-      break;
+      case "SCRAPE_SUCCESS":
+        updateProgress("scraped");
+        safeRemoveTab(sender.tab?.id);
+        break;
 
-    case "SCRAPE_FAILED":
-      updateProgress("failed");
-      safeRemoveTab(sender.tab?.id);
-      break;
-
-      case "SITE_SELECTED":
-        console.log("SITE_SELECTED", message.site);
-        if (message.site === "bayut") {
-          console.log("Bayut selected!");
-        } else {
-          console.log("Other site selected:", message.site);
-        }
+      case "SCRAPE_FAILED":
+        updateProgress("failed");
+        safeRemoveTab(sender.tab?.id);
         break;
 
       default:
@@ -289,6 +332,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // ------------------ Category Handling ------------------
+
 async function startCategoryScraping() {
   // Lock next category for this device and begin scraping
   chrome.storage.local.get("deviceId", async ({ deviceId }) => {

@@ -1,12 +1,13 @@
 const wait = (ms) => new Promise((res) => setTimeout(res, ms));
 const urlParams = new URLSearchParams(window.location.search);
-const API_BASE_URL = "http://localhost:8000/api";
-
+// const API_BASE_URL = "http://localhost:8000/api";
+const API_BASE_URL = CONFIG.API_BASE_URL;
 /**
  * Save errors locally in extension storage for review/debugging
  * @param {Error|string} error - The error object or message
  * @param {string} context - Descriptive context for where the error occurred
  */
+console.log("API_BASE_URL", API_BASE_URL, CONFIG.API_BASE_URL, "CONFIG.API_BASE_URL");
 
 function storeErrorInExtensionStorage(error, context = "General") {
   const newError = {
@@ -15,6 +16,7 @@ function storeErrorInExtensionStorage(error, context = "General") {
     url: window.location.href,
     time: new Date().toISOString(),
   };
+
   // Get previous errors, append the new one, and save back
   chrome.storage.local.get(["scrapeErrors"], (result) => {
     const existingErrors = result.scrapeErrors || [];
@@ -24,6 +26,37 @@ function storeErrorInExtensionStorage(error, context = "General") {
     });
   });
 }
+
+function waitUntilVerificationClosed(callback) {
+  // Detect Dubizzle/Bayut verification iframe
+  const iframe = document.querySelector(
+    'iframe[src*="consent"], iframe[src*="verify"], iframe[src*="age"]'
+  );
+
+  // If no iframe → verification already passed
+  if (!iframe) {
+    callback();
+    return;
+  }
+
+  console.warn("⛔ Security verification active — waiting for user to complete...");
+
+  // Observe DOM changes until iframe is removed
+  const observer = new MutationObserver(() => {
+    const stillThere = document.querySelector(
+      'iframe[src*="consent"], iframe[src*="verify"], iframe[src*="age"]'
+    );
+
+    if (!stillThere) {
+      observer.disconnect();
+      console.log("✅ Verification closed — resuming scraping...");
+      callback();
+    }
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+}
+
 /**
  * Main data extraction logic from the property detail page
  */
@@ -37,11 +70,12 @@ async function scrapData(deviceId) {
       console.log("Loaded site from storage:", CONFIG.siteValue);
     }
   });
+
   const text = (sel) => document.querySelector(sel)?.innerText?.trim() || null;
 
   /**
- * Extract info from <ul> lists following section headings
- */
+  * Extract info from <ul> lists following section headings
+  */
 
   const scrapeListSection = (headingTitle) => {
     const heading = Array.from(document.querySelectorAll("h1,h2,h3,h4,h5,h6"))
@@ -214,23 +248,44 @@ async function scrapData(deviceId) {
   console.log("Extracted Full Payload:", CONFIG.siteValue, payload);
   // Send extracted data to the backend API
 
+  console.log("CONFIG.siteValue", CONFIG.siteValue);
   try {
     chrome.storage.local.get("siteValue", async (ress) => {
       const site = ress.siteValue || CONFIG.siteValue;
+      console.log("CONFIG.siteValue", CONFIG.siteValue);
+      console.log("site", site);
+      console.log("ress.siteValue", ress.siteValue);
 
-      const response = await fetch(`${API_BASE_URL}/property/${site}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+      // const response = await fetch(`${API_BASE_URL}/property/${site}`, {
+      //   method: "POST",
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //   },
+      //   body: JSON.stringify(payload),
+      // });
+
+      chrome.runtime.sendMessage({
+        type: "SEND_TO_API",
+        endpoint: `/property/${site}`,
+        payload,
+      }, (response) => {
+        console.log("API Response:", response);
+
+        if (response?.success) {
+          reportScrapeSuccess();
+          window.close();
+        } else {
+          reportScrapeFailure();
+          console.error("Failed to send to API:", response?.error);
+        }
       });
-      const result = await response.json();
-      console.log("✅ Sent to API:", result);
-      reportScrapeSuccess();
-      if (result?.success) {
-        window.close();
-      }
+
+      // const result = await response.json();
+      // console.log("✅ Sent to API:", result);
+      // reportScrapeSuccess();
+      // if (result?.success) {
+      //   window.close();
+      // }
     });
   } catch (err) {
     console.error("Failed to send data to API:", err);
@@ -252,38 +307,51 @@ async function scrapData(deviceId) {
         },
       }),
     });
-
     window.close();
   }
+
 }
 
-
 // --- Entry point ---
-// Wait until page fully loads, then request deviceId from extension
+
 // window.addEventListener("load", async () => {
-//   chrome.runtime.sendMessage(
-//     // TODO: change id of extension
-//     "pgaoefncplnidnpjgimnmfadjpkmbngg",
-//     { type: "GET_DEVICE_ID" },
-//     (response) => {
-//       deviceId = response.deviceId;
-//       scrapData(response.deviceId)
+//   chrome.runtime.sendMessage({ type: "GET_DEVICE_ID" }, async (response) => {
+//     if (!response?.deviceId) {
+//       console.warn("No deviceId found — stopping.");
+//       return;
 //     }
-//   );
+
+//     // Wait for DOM to actually load (Dubizzle/Bayut is slow)
+//     try {
+//       await waitForSelector('[data-testid="listing-price"]', 10000);
+//     } catch (e) {
+//       console.error("Page never loaded required elements:", e);
+//       return;
+//     }
+
+//     await loadSiteValue();
+//     scrapData(response.deviceId);
+//   });
 // });
 
 window.addEventListener("load", async () => {
   chrome.runtime.sendMessage({ type: "GET_DEVICE_ID" }, (response) => {
     console.log("Got response for GET_DEVICE_ID:", response);
-    if (response?.deviceId) {
-      scrapData(response.deviceId);
-    } else {
+
+    if (!response?.deviceId) {
       console.warn("No deviceId found");
+      return;
     }
+
+    // 🔥 Wait until user completes security check
+    waitUntilVerificationClosed(() => {
+      scrapData(response.deviceId);
+    });
   });
 });
 
 // Success/failure signals sent to extension background script
+
 function reportScrapeSuccess() {
   chrome.runtime.sendMessage({ type: "SCRAPE_SUCCESS" });
 }
@@ -291,4 +359,3 @@ function reportScrapeSuccess() {
 function reportScrapeFailure() {
   chrome.runtime.sendMessage({ type: "SCRAPE_FAILED" });
 }
-
