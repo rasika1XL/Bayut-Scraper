@@ -287,29 +287,56 @@ async function scrapData(deviceId) {
       //   window.close();
       // }
     });
+    
+  // } catch (err) {
+  //   console.error("Failed to send data to API:", err);
+  //   storeErrorInExtensionStorage(err, "Failed to send data to API");
+
+  //   // Report error to your backend
+  //   await fetch(`${API_BASE_URL}/error/${CONFIG.siteValue}`, {
+  //     method: "POST",
+  //     headers: {
+  //       "Content-Type": "application/json",
+  //     },
+  //     body: JSON.stringify({
+  //       data: {
+  //         message: err.message || "Unknown error",
+  //         stack: err.stack || null,
+  //         url: window.location.href,
+  //         time: new Date().toISOString(),
+  //         context: "scrapData error",
+  //       },
+  //     }),
+  //   });
+  //   window.close();
+  // }
+
   } catch (err) {
-    console.error("Failed to send data to API:", err);
-    storeErrorInExtensionStorage(err, "Failed to send data to API");
+  console.error("Failed to send data to API:", err);
+  storeErrorInExtensionStorage(err, "Failed to send data to API");
 
-    // Report error to your backend
-    await fetch(`${API_BASE_URL}/error/${CONFIG.siteValue}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        data: {
-          message: err.message || "Unknown error",
-          stack: err.stack || null,
-          url: window.location.href,
-          time: new Date().toISOString(),
-          context: "scrapData error",
-        },
-      }),
-    });
-    window.close();
-  }
+  const errorPayload = {
+    data: {
+      message: err.message || "Unknown error",
+      stack: err.stack || null,
+      url: window.location.href,
+      time: new Date().toISOString(),
+      context: "scrapData error",
+    }
+  };
 
+  chrome.runtime.sendMessage(
+    {
+      type: "SEND_ERROR_TO_API",
+      endpoint: `/error/${CONFIG.siteValue}`,
+      errorPayload,
+    },
+    (response) => {
+      console.log("Error Report API Response:", response);
+      window.close();
+    }
+  );
+}
 }
 
 // --- Entry point ---

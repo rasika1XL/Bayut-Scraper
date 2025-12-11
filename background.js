@@ -186,7 +186,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         break;
 
-                    // ------------------ API Handler ------------------
+      // ------------------ API Handler ------------------
       case "SEND_TO_API":
         console.log("📤 SEND_TO_API received:", {
           endpoint: message.endpoint,
@@ -226,6 +226,41 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         })();
 
         return true; // keep channel alive
+
+      case "SEND_ERROR_TO_API":
+        console.log("📤 SEND_ERROR_TO_API received:", {
+          endpoint: message.endpoint,
+          error: message.errorPayload
+        });
+
+        const errorApiUrl = `http://localhost:8000/api${message.endpoint}`;
+        console.log("🌍 Final Error API URL:", errorApiUrl);
+
+        (async () => {
+          try {
+            const response = await fetch(errorApiUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(message.errorPayload),
+            });
+
+            if (!response.ok) {
+              const text = await response.text().catch(() => "");
+              throw new Error(`HTTP ${response.status} → ${text}`);
+            }
+
+            const json = await response.json();
+            console.log("✅ Error Report Response JSON:", json);
+
+            sendResponse({ success: true, data: json });
+
+          } catch (err) {
+            console.error("❌ ERROR REPORT FAILED →", err);
+            sendResponse({ success: false, error: err.message });
+          }
+        })();
+
+        return true;
 
       // ------------------ Scraper Control ------------------
 

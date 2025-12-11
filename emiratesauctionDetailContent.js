@@ -247,6 +247,7 @@ async function scrapData(deviceId) {
   try {
     chrome.storage.local.get("siteValue", async (ress) => {
       console.log("Using siteValue:", ress.siteValue);
+
       const response = await fetch(
         `${API_BASE_URL}/property/${ress.siteValue || CONFIG.siteValue}`,
         {
@@ -257,13 +258,14 @@ async function scrapData(deviceId) {
           body: JSON.stringify(payload),
         }
       );
-
+     
       const result = await response.json();
       reportScrapeSuccess();
 
       if (result?.success) {
         window.close();
       }
+
     });
   } catch (err) {
     console.error("Failed to send data to API:", err);
