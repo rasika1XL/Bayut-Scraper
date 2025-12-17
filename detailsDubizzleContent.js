@@ -9,6 +9,58 @@ const API_BASE_URL = CONFIG.API_BASE_URL;
  */
 console.log("API_BASE_URL", API_BASE_URL, CONFIG.API_BASE_URL, "CONFIG.API_BASE_URL");
 
+// -------------------------
+// Reload retry management
+// -------------------------
+const MAX_RELOAD_RETRIES = 6;
+const RETRY_KEY = "scrape_reload_attempts";
+
+function getRetryCount() {
+  return parseInt(sessionStorage.getItem(RETRY_KEY) || "0", 10);
+}
+
+function incrementRetryCount() {
+  const next = getRetryCount() + 1;
+  sessionStorage.setItem(RETRY_KEY, String(next));
+  return next;
+}
+
+function resetRetryCount() {
+  sessionStorage.removeItem(RETRY_KEY);
+}
+
+// -------------------------
+// Security page detection
+// -------------------------
+function isSecurityPageActive() {
+  return !!document.querySelector(
+    'iframe[src*="verify"], iframe[src*="consent"], iframe[src*="challenge"], iframe[src*="age"]'
+  );
+}
+
+function reloadIfAllowed(reason = "Unknown") {
+  if (isSecurityPageActive()) {
+    console.warn("⛔ Security page active — reload blocked");
+    return;
+  }
+
+  const attempts = getRetryCount();
+
+  if (attempts >= MAX_RELOAD_RETRIES) {
+    console.error("❌ Max reload retries reached — giving up");
+    reportScrapeFailure();
+    window.close();
+    return;
+  }
+
+  incrementRetryCount();
+  console.warn(`🔄 Reloading page (attempt ${attempts + 1}) — ${reason}`);
+
+  setTimeout(() => {
+    window.location.reload();
+  }, 5 * 60 * 1000); //5 min
+}
+
 function storeErrorInExtensionStorage(error, context = "General") {
   const newError = {
     context,
@@ -271,13 +323,22 @@ async function scrapData(deviceId) {
       }, (response) => {
         console.log("API Response:", response);
 
+        // if (response?.success) {
+        //   reportScrapeSuccess();
+        //   window.close();
+        // } else {
+        //   reportScrapeFailure();
+        //   console.error("Failed to send to API:", response?.error);
+        // }
         if (response?.success) {
+          resetRetryCount();
           reportScrapeSuccess();
           window.close();
         } else {
           reportScrapeFailure();
-          console.error("Failed to send to API:", response?.error);
+          reloadIfAllowed("API failure");
         }
+
       });
 
       // const result = await response.json();
@@ -287,56 +348,84 @@ async function scrapData(deviceId) {
       //   window.close();
       // }
     });
-    
-  // } catch (err) {
-  //   console.error("Failed to send data to API:", err);
-  //   storeErrorInExtensionStorage(err, "Failed to send data to API");
 
-  //   // Report error to your backend
-  //   await fetch(`${API_BASE_URL}/error/${CONFIG.siteValue}`, {
-  //     method: "POST",
-  //     headers: {
-  //       "Content-Type": "application/json",
-  //     },
-  //     body: JSON.stringify({
-  //       data: {
-  //         message: err.message || "Unknown error",
-  //         stack: err.stack || null,
-  //         url: window.location.href,
-  //         time: new Date().toISOString(),
-  //         context: "scrapData error",
-  //       },
-  //     }),
-  //   });
-  //   window.close();
-  // }
+    // } catch (err) {
+    //   console.error("Failed to send data to API:", err);
+    //   storeErrorInExtensionStorage(err, "Failed to send data to API");
+
+    //   // Report error to your backend
+    //   await fetch(`${API_BASE_URL}/error/${CONFIG.siteValue}`, {
+    //     method: "POST",
+    //     headers: {
+    //       "Content-Type": "application/json",
+    //     },
+    //     body: JSON.stringify({
+    //       data: {
+    //         message: err.message || "Unknown error",
+    //         stack: err.stack || null,
+    //         url: window.location.href,
+    //         time: new Date().toISOString(),
+    //         context: "scrapData error",
+    //       },
+    //     }),
+    //   });
+    //   window.close();
+    // }
 
   } catch (err) {
-  console.error("Failed to send data to API:", err);
-  storeErrorInExtensionStorage(err, "Failed to send data to API");
+    console.error("Failed to send data to API:", err);
+    storeErrorInExtensionStorage(err, "Failed to send data to API");
 
-  const errorPayload = {
-    data: {
-      message: err.message || "Unknown error",
-      stack: err.stack || null,
-      url: window.location.href,
-      time: new Date().toISOString(),
-      context: "scrapData error",
-    }
-  };
+    const errorPayload = {
+      data: {
+        message: err.message || "Unknown error",
+        stack: err.stack || null,
+        url: window.location.href,
+        time: new Date().toISOString(),
+        context: "scrapData error",
+      }
+    };
 
-  chrome.runtime.sendMessage(
-    {
-      type: "SEND_ERROR_TO_API",
-      endpoint: `/error/${CONFIG.siteValue}`,
-      errorPayload,
-    },
-    (response) => {
-      console.log("Error Report API Response:", response);
-      window.close();
-    }
-  );
+    chrome.runtime.sendMessage(
+      {
+        type: "SEND_ERROR_TO_API",
+        endpoint: `/error/${CONFIG.siteValue}`,
+        errorPayload,
+      },
+      (response) => {
+        console.log("Error Report API Response:", response);
+        // window.close();
+         if (isSecurityPageActive()) {
+    console.warn("⛔ Security active — waiting");
+    return;
+  }
+
+  reloadIfAllowed("error reported to API");
+      }
+    );
+  }
 }
+
+function waitForSelector(selector, timeout = 15000) {
+  return new Promise((resolve, reject) => {
+    const el = document.querySelector(selector);
+    if (el) return resolve(el);
+
+    const observer = new MutationObserver(() => {
+      const el = document.querySelector(selector);
+      if (el) {
+        observer.disconnect();
+        resolve(el);
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    setTimeout(() => {
+      observer.disconnect();
+      reject(new Error(`Timeout waiting for ${selector}`));
+    }, timeout);
+  });
 }
 
 // --- Entry point ---
@@ -361,28 +450,55 @@ async function scrapData(deviceId) {
 //   });
 // });
 
-window.addEventListener("load", async () => {
-  chrome.runtime.sendMessage({ type: "GET_DEVICE_ID" }, (response) => {
-    console.log("Got response for GET_DEVICE_ID:", response);
+// window.addEventListener("load", async () => {
+//   chrome.runtime.sendMessage({ type: "GET_DEVICE_ID" }, (response) => {
+//     console.log("Got response for GET_DEVICE_ID:", response);
+//     if (response?.deviceId) {
+//       scrapData(response.deviceId);
+//     } else {
+//       console.warn("No deviceId found");
+//     }
+//   });
+// });
 
-    if (!response?.deviceId) {
-      console.warn("No deviceId found");
-      return;
-    }
+window.addEventListener("load", () => {
+  chrome.runtime.sendMessage({ type: "GET_DEVICE_ID" }, async (response) => {
+    if (!response?.deviceId) return;
 
-    // 🔥 Wait until user completes security check
-    waitUntilVerificationClosed(() => {
-      scrapData(response.deviceId);
+    waitUntilVerificationClosed(async () => {
+      try {
+        await waitForSelector('[data-testid="listing-price"]', 12000);
+
+        // ✅ Page loaded correctly
+        resetRetryCount();
+
+        await scrapData(response.deviceId);
+      } catch (e) {
+        console.warn("⚠️ Listing data not loaded");
+
+        reloadIfAllowed("listing-price selector missing");
+      }
     });
   });
 });
 
 // Success/failure signals sent to extension background script
 
+// function reportScrapeSuccess() {
+//   chrome.runtime.sendMessage({ type: "SCRAPE_SUCCESS" });
+// }
+
+// function reportScrapeFailure() {
+//   chrome.runtime.sendMessage({ type: "SCRAPE_FAILED" });
+// }
+
 function reportScrapeSuccess() {
+  scrapeFinished = true;
+  sessionStorage.removeItem("scrapeReloads");
   chrome.runtime.sendMessage({ type: "SCRAPE_SUCCESS" });
 }
 
 function reportScrapeFailure() {
+  scrapeFinished = true;
   chrome.runtime.sendMessage({ type: "SCRAPE_FAILED" });
 }

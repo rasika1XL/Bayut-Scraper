@@ -197,7 +197,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
         });
 
-        const apiUrl = `http://localhost:8000/api${message.endpoint}`;
+        // const apiUrl = `http://localhost:8000/api${message.endpoint}`;
+        const apiUrl = `${CONFIG.API_BASE_URL}${message.endpoint}`;
+
         console.log("🌍 Final API URL:", apiUrl);
 
         // IMPORTANT: use async wrapper so errors don’t kill sendResponse
@@ -515,6 +517,7 @@ function openUrlsInBatches(urls) {
               console.log("💾 Saved last opened:", url, "at index:", index);
             }
           );
+
         });
       } catch (err) {
         storeErrorInExtensionStorage(

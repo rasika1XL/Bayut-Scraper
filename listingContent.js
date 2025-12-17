@@ -117,7 +117,7 @@ function waitForListingsAndRunAutomation(retry = 0) {
       return;
     }
 
-    if (listings.length === 0) {
+    if (listings.length === 5) {
       console.warn("⚠️ No listings found after max retries. Reloading page...");
       location.reload(); // 🔄 force reload if nothing loads
       return;
