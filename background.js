@@ -197,9 +197,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
         });
 
-        // const apiUrl = `http://localhost:8000/api${message.endpoint}`;
-        const apiUrl = `${CONFIG.API_BASE_URL}${message.endpoint}`;
-
+        const apiUrl = `http://localhost:8000/api${message.endpoint}`;
         console.log("🌍 Final API URL:", apiUrl);
 
         // IMPORTANT: use async wrapper so errors don’t kill sendResponse
@@ -230,20 +228,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true; // keep channel alive
 
       case "SEND_ERROR_TO_API":
-        console.log("📤 SEND_ERROR_TO_API received:", {
+        console.log("🚨 SEND_ERROR_TO_API received:", {
           endpoint: message.endpoint,
-          error: message.errorPayload
+          error: message.payload?.data?.message,
         });
 
         const errorApiUrl = `http://localhost:8000/api${message.endpoint}`;
-        console.log("🌍 Final Error API URL:", errorApiUrl);
+        console.log("🌍 Error API URL:", errorApiUrl);
 
         (async () => {
           try {
             const response = await fetch(errorApiUrl, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(message.errorPayload),
+              body: JSON.stringify(message.payload),
             });
 
             if (!response.ok) {
@@ -252,12 +250,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
 
             const json = await response.json();
-            console.log("✅ Error Report Response JSON:", json);
+            console.log("✅ Error logged successfully:", json);
 
             sendResponse({ success: true, data: json });
 
           } catch (err) {
-            console.error("❌ ERROR REPORT FAILED →", err);
+            console.error("❌ Error logging FAILED →", err);
             sendResponse({ success: false, error: err.message });
           }
         })();
@@ -517,7 +515,6 @@ function openUrlsInBatches(urls) {
               console.log("💾 Saved last opened:", url, "at index:", index);
             }
           );
-
         });
       } catch (err) {
         storeErrorInExtensionStorage(

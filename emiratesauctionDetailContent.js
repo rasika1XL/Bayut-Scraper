@@ -244,51 +244,104 @@ async function scrapData(deviceId) {
     },
   };
 
-  try {
-    chrome.storage.local.get("siteValue", async (ress) => {
-      console.log("Using siteValue:", ress.siteValue);
+  // try {
+  //   chrome.storage.local.get("siteValue", async (ress) => {
+  //     console.log("Using siteValue:", ress.siteValue);
+  //     const response = await fetch(
+  //       `${API_BASE_URL}/property/${ress.siteValue || CONFIG.siteValue}`,
+  //       {
+  //         method: "POST",
+  //         headers: {
+  //           "Content-Type": "application/json",
+  //         },
+  //         body: JSON.stringify(payload),
+  //       }
+  //     );
 
-      const response = await fetch(
-        `${API_BASE_URL}/property/${ress.siteValue || CONFIG.siteValue}`,
+  //     const result = await response.json();
+  //     reportScrapeSuccess();
+
+  //     if (result?.success) {
+  //       window.close();
+  //     }
+  //   });
+  // } catch (err) {
+  //   console.error("Failed to send data to API:", err);
+  //   storeErrorInExtensionStorage(err, "Failed to send data to API");
+
+  try {
+    chrome.storage.local.get("siteValue", (ress) => {
+      const site = ress.siteValue || CONFIG.siteValue || "bayut";
+
+      chrome.runtime.sendMessage(
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
+          type: "SEND_TO_API",
+          endpoint: `/property/${site}`,
+          payload,
+        },
+        (response) => {
+          console.log("API response:", response);
+
+          if (response?.success) {
+            reportScrapeSuccess();
+            window.close();
+          } else {
+            console.error("API failed:", response?.error);
+            reportScrapeFailure();
+            window.close();
+          }
         }
       );
-     
-      const result = await response.json();
-      reportScrapeSuccess();
-
-      if (result?.success) {
-        window.close();
-      }
-
     });
   } catch (err) {
     console.error("Failed to send data to API:", err);
     storeErrorInExtensionStorage(err, "Failed to send data to API");
+    reportScrapeFailure();
+    window.close();
+  }
 
-    // Report error to your backend
-    await fetch(`${API_BASE_URL}/error/${CONFIG.siteValue}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+  // Report error to your backend
+  // await fetch(`${API_BASE_URL}/error/${CONFIG.siteValue}`, {
+  //   method: "POST",
+  //   headers: {
+  //     "Content-Type": "application/json",
+  //   },
+  //   body: JSON.stringify({
+  //     data: {
+  //       message: err.message || "Unknown error",
+  //       stack: err.stack || null,
+  //       url: window.location.href,
+  //       time: new Date().toISOString(),
+  //       context: "scrapData error",
+  //     },
+  //   }),
+  // });
+
+  chrome.runtime.sendMessage(
+    {
+      type: "SEND_ERROR_TO_API",
+      endpoint: `/error/${CONFIG.siteValue}`,
+      payload: {
         data: {
-          message: err.message || "Unknown error",
-          stack: err.stack || null,
+          message: err?.message || "Unknown error",
+          stack: err?.stack || null,
           url: window.location.href,
           time: new Date().toISOString(),
           context: "scrapData error",
         },
-      }),
-    });
-    window.close();
-  }
+      },
+    },
+    (response) => {
+      if (response?.success) {
+        console.log("✅ Error sent to API successfully");
+      } else {
+        console.error("❌ Error API failed:", response?.error);
+      }
+    }
+  );
+
+  window.close();
+
 }
 
 // --- Entry point ---

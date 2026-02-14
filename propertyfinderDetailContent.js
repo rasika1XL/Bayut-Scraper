@@ -31,14 +31,14 @@ async function scrapData(deviceId) {
     const out = {};
     document
       .querySelectorAll(
-        `${containerSelector} .styles_desktop_list__item__lF_Fh`
+        `${containerSelector} .styles_desktop_list__item__lF_Fh`,
       )
       .forEach((item) => {
         const labelEl = item.querySelector(
-          ".styles_desktop_list__label-text__0YJ8y"
+          ".styles_desktop_list__label-text__0YJ8y",
         );
         const valueEl = item.querySelector(
-          ".styles_desktop_list__value__uIdMl"
+          ".styles_desktop_list__value__uIdMl",
         );
 
         if (labelEl && valueEl) {
@@ -63,7 +63,7 @@ async function scrapData(deviceId) {
 
   function scrapeRegulatoryInfo() {
     const container = document.querySelector(
-      ".styles_desktop_container__kcSkl"
+      ".styles_desktop_container__kcSkl",
     );
     if (!container) return {};
 
@@ -88,19 +88,19 @@ async function scrapData(deviceId) {
 
     // Reference (special case because it has data-testid)
     const reference = container.querySelector(
-      '[data-testid="property-regulatory-reference"]'
+      '[data-testid="property-regulatory-reference"]',
     );
     if (reference) out["Reference"] = reference.textContent.trim();
 
     // Agent license no
     const agentLicense = container.querySelector(
-      '[data-testid="property-regulatory-agent-license-no"]'
+      '[data-testid="property-regulatory-agent-license-no"]',
     );
     if (agentLicense) out["Agent License No"] = agentLicense.textContent.trim();
 
     // Phone, if exists
     const phoneLink = document.querySelector(
-      '[data-testid="bottom-actions-call-button"]'
+      '[data-testid="bottom-actions-call-button"]',
     );
     if (phoneLink)
       out["Agent Phone"] = phoneLink.getAttribute("href").split("tel:")[1];
@@ -111,8 +111,8 @@ async function scrapData(deviceId) {
   const scrapeAmenities = () => {
     return Array.from(
       document.querySelectorAll(
-        '[data-testid^="amenity-"] .styles_text__IlyiW, #project-amenities li span'
-      )
+        '[data-testid^="amenity-"] .styles_text__IlyiW, #project-amenities li span',
+      ),
     )
       .map((el) => el.textContent.trim())
       .filter(Boolean);
@@ -129,7 +129,7 @@ async function scrapData(deviceId) {
 
     // Get all table wrappers inside the container
     const tableWrappers = container.querySelectorAll(
-      ".styles_desktop_table__wrapper__E8PtW"
+      ".styles_desktop_table__wrapper__E8PtW",
     );
 
     if (tableWrappers.length >= 2) {
@@ -173,7 +173,7 @@ async function scrapData(deviceId) {
   const imagesUrl = async () => {
     // Open gallery
     const clickOnImage = document.querySelector(
-      ".styles_desktop_image__button__a2DFs"
+      ".styles_desktop_image__button__a2DFs",
     );
     if (clickOnImage) {
       clickOnImage.click();
@@ -185,13 +185,13 @@ async function scrapData(deviceId) {
     // Grab all thumbnail images
     const images = Array.from(
       document.querySelectorAll(
-        ".styles-module_gallery-thumbnails__list__item__G9-ki img"
-      )
+        ".styles-module_gallery-thumbnails__list__item__G9-ki img",
+      ),
     ).map((img) => img.getAttribute("src"));
 
     // Close gallery if needed
     const closeBtn = document.querySelector(
-      ".styles-module_gallery-full-screen__close-button__GLMVK"
+      ".styles-module_gallery-full-screen__close-button__GLMVK",
     );
     if (closeBtn) {
       closeBtn.click();
@@ -242,7 +242,7 @@ async function scrapData(deviceId) {
   const similarTransactions = await scrapeTransactions();
   // const area = document.querySelector('[aria-label="Area"]')?.innerText;
   const areaEl = document.querySelector(
-    '[data-testid="property-details-size"]'
+    '[data-testid="property-details-size"]',
   );
   let areaNum = null;
   if (areaEl) {
@@ -268,7 +268,7 @@ async function scrapData(deviceId) {
       : null;
 
   const phoneLink = document.querySelector(
-    '[data-testid="bottom-actions-call-button"]'
+    '[data-testid="bottom-actions-call-button"]',
   );
   const agentPhone = phoneLink
     ? phoneLink.getAttribute("href").split("tel:")[1]
@@ -305,7 +305,7 @@ async function scrapData(deviceId) {
   }
   function extractPaymentPlans() {
     const section = document.querySelector(
-      '[data-testid="project-payment-plan"]'
+      '[data-testid="project-payment-plan"]',
     );
     if (!section) return {};
 
@@ -349,12 +349,12 @@ async function scrapData(deviceId) {
   }
   function extractProjectTimeline() {
     const timelineSection = document.querySelector(
-      '[data-testid="project-timeline"]'
+      '[data-testid="project-timeline"]',
     );
     if (!timelineSection) return [];
 
     const steps = timelineSection.querySelectorAll(
-      "li.styles_timeline__step__ZP_5l"
+      "li.styles_timeline__step__ZP_5l",
     );
 
     return Array.from(steps).map((step) => {
@@ -372,7 +372,7 @@ async function scrapData(deviceId) {
       const latestUpdate =
         step
           .querySelector(
-            ".styles_construction-progress__last-inspection__7mNkq strong"
+            ".styles_construction-progress__last-inspection__7mNkq strong",
           )
           ?.textContent.trim() || null;
 
@@ -391,12 +391,12 @@ async function scrapData(deviceId) {
 
     const unitsObj = {};
     const unitAccordions = section.querySelectorAll(
-      '[data-testid="accordion"]'
+      '[data-testid="accordion"]',
     );
 
     for (const accordion of unitAccordions) {
       const headerButton = accordion.querySelector(
-        '[data-testid="project-unit"]'
+        '[data-testid="project-unit"]',
       );
 
       // Expand accordion if not already active
@@ -424,7 +424,7 @@ async function scrapData(deviceId) {
 
       // Extract layouts
       const rows = accordion.querySelectorAll(
-        '[data-testid="accordion-body"] tbody tr'
+        '[data-testid="accordion-body"] tbody tr',
       );
       const layouts = Array.from(rows).map((row) => ({
         layoutType:
@@ -449,7 +449,7 @@ async function scrapData(deviceId) {
 
   function extractProjectMasterplan() {
     const section = document.querySelector(
-      '[data-testid="project-masterplan"]'
+      '[data-testid="project-masterplan"]',
     );
     if (!section) return null;
 
@@ -458,7 +458,7 @@ async function scrapData(deviceId) {
 
     // Description text (excluding headings & lists)
     const descriptionNodes = section.querySelectorAll(
-      '[data-testid="project-master-plan-description"] > p'
+      '[data-testid="project-master-plan-description"] > p',
     );
     const description = Array.from(descriptionNodes)
       .map((p) => p.textContent.trim())
@@ -467,7 +467,7 @@ async function scrapData(deviceId) {
     // Extract all headings + their following <ul>
     const features = {};
     const descriptionContainer = section.querySelector(
-      '[data-testid="project-master-plan-description"]'
+      '[data-testid="project-master-plan-description"]',
     );
 
     if (descriptionContainer) {
@@ -477,7 +477,7 @@ async function scrapData(deviceId) {
         const nextList =
           heading.nextElementSibling?.tagName === "UL"
             ? Array.from(heading.nextElementSibling.querySelectorAll("li")).map(
-                (li) => li.textContent.trim()
+                (li) => li.textContent.trim(),
               )
             : [];
 
@@ -494,7 +494,7 @@ async function scrapData(deviceId) {
   }
   async function scrapeAgencies() {
     const button = document.querySelector(
-      '[data-testid="agencies-show-more-button"]'
+      '[data-testid="agencies-show-more-button"]',
     );
 
     // Step 1: click "See all authorised agencies" if present
@@ -679,43 +679,86 @@ async function scrapData(deviceId) {
   // Send extracted data to the backend API
   console.log("Sending data to API:", CONFIG.siteValue, payload);
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/property/${CONFIG.siteValue}`,
+    // const response = await fetch(
+    //   `${API_BASE_URL}/property/${CONFIG.siteValue}`,
+    //   {
+    //     method: "POST",
+    //     headers: {
+    //       "Content-Type": "application/json",
+    //     },
+    //     body: JSON.stringify(payload),
+    //   }
+    // );
+
+    chrome.runtime.sendMessage(
       {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      }
+        type: "SEND_TO_API",
+        endpoint: `/property/${CONFIG.siteValue}`,
+        payload,
+      },
+      (response) => {
+        console.log("API Response:", response);
+
+        if (response?.success) {
+          reportScrapeSuccess();
+          window.close();
+        } else {
+          reportScrapeFailure();
+          console.error("Failed to send to API:", response?.error);
+        }
+      },
     );
 
-    const result = await response.json();
-    reportScrapeSuccess();
+    // const result = await response.json();
+    // reportScrapeSuccess();
 
-    if (result?.success) {
-      window.close();
-    }
+    // if (result?.success) {
+    //   window.close();
+    // }
   } catch (err) {
     console.error("Failed to send data to API:", err);
     storeErrorInExtensionStorage(err, "Failed to send data to API");
 
     // Report error to your backend
-    await fetch(`${API_BASE_URL}/error/${CONFIG.siteValue}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        data: {
-          message: err.message || "Unknown error",
-          stack: err.stack || null,
-          url: window.location.href,
-          time: new Date().toISOString(),
-          context: "scrapData error",
+    // await fetch(`${API_BASE_URL}/error/${CONFIG.siteValue}`, {
+    //   method: "POST",
+    //   headers: {
+    //     "Content-Type": "application/json",
+    //   },
+    //   body: JSON.stringify({
+    //     data: {
+    //       message: err.message || "Unknown error",
+    //       stack: err.stack || null,
+    //       url: window.location.href,
+    //       time: new Date().toISOString(),
+    //       context: "scrapData error",
+    //     },
+    //   }),
+    // });
+
+    chrome.runtime.sendMessage(
+      {
+        type: "SEND_ERROR_TO_API",
+        endpoint: `/error/${CONFIG.siteValue}`,
+        payload: {
+          data: {
+            message: err?.message || "Unknown error",
+            stack: err?.stack || null,
+            url: window.location.href,
+            time: new Date().toISOString(),
+            context: "scrapData → SEND_TO_API",
+          },
         },
-      }),
-    });
+      },
+      (response) => {
+        if (response?.success) {
+          console.log("✅ Error sent to API successfully");
+        } else {
+          console.error("❌ Error API failed:", response?.error);
+        }
+      },
+    );
+
     window.close();
   }
 }

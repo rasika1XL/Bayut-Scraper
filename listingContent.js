@@ -4,7 +4,7 @@
 
 const MAX_RETRIES = 10; // Max retries for waiting listings
 const RETRY_DELAY_MS = 1000; // Delay between retries
-const SPA_CHECK_INTERVAL_MS = 1000; // Interval to check URL changes in SPA
+const SPA_CHECK_INTERVAL_MS = 2000; // Interval to check URL changes in SPA
 const BATCH_DELAY_MS = 2 * 60 * 1000; // Delay before opening 2nd batch (2 minutes)
 const NEXT_PAGE_DELAY_MS = 5 * 60 * 1000; // Delay before moving to next page (5 minutes)// Delay before moving to next page (5 minutes)
 // -----------------------------------------------
@@ -117,7 +117,7 @@ function waitForListingsAndRunAutomation(retry = 0) {
       return;
     }
 
-    if (listings.length === 5) {
+    if (listings.length === 0) {
       console.warn("⚠️ No listings found after max retries. Reloading page...");
       location.reload(); // 🔄 force reload if nothing loads
       return;

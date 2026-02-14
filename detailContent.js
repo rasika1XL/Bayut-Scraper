@@ -23,8 +23,7 @@ function storeErrorInExtensionStorage(error, context = "General") {
   chrome.storage.local.get(["scrapeErrors"], (result) => {
     const existingErrors = result.scrapeErrors || [];
     existingErrors.push(newError);
-    chrome.storage.local.set({ scrapeErrors: existingErrors }, () => {
-    });
+    chrome.storage.local.set({ scrapeErrors: existingErrors }, () => {});
   });
 }
 
@@ -36,13 +35,13 @@ async function scrapData(deviceId) {
   const text = (sel) => document.querySelector(sel)?.innerText?.trim() || null;
 
   /**
-  * Extract info from <ul> lists following section headings
-  */
+   * Extract info from <ul> lists following section headings
+   */
   const scrapeListSection = (headingTitle) => {
     const heading = Array.from(
-      document.querySelectorAll("h1,h2,h3,h4,h5,h6")
+      document.querySelectorAll("h1,h2,h3,h4,h5,h6"),
     ).find(
-      (h) => h.textContent.trim().toLowerCase() === headingTitle.toLowerCase()
+      (h) => h.textContent.trim().toLowerCase() === headingTitle.toLowerCase(),
     );
     if (!heading) return {};
     const container = heading.closest("div._8a2b3961") || heading.parentElement;
@@ -61,8 +60,10 @@ async function scrapData(deviceId) {
    * Robust version of scrapeListSection (different DOM structure handling)
    */
   function robustScrapeListSection(headingTitle) {
-    const heading = Array.from(document.querySelectorAll("h1,h2,h3,h4,h5,h6")).find(
-      (h) => h.textContent.trim().toLowerCase() === headingTitle.toLowerCase()
+    const heading = Array.from(
+      document.querySelectorAll("h1,h2,h3,h4,h5,h6"),
+    ).find(
+      (h) => h.textContent.trim().toLowerCase() === headingTitle.toLowerCase(),
     );
 
     if (!heading) return {};
@@ -90,8 +91,8 @@ async function scrapData(deviceId) {
   }
 
   /**
-  * Extract government/regulatory details (e.g. RERA info)
-  */
+   * Extract government/regulatory details (e.g. RERA info)
+   */
   const getRegulatory = () => {
     const container =
       document.querySelector("div.ec122524._169c4895._07c05f81") ||
@@ -117,7 +118,7 @@ async function scrapData(deviceId) {
     const out = {};
 
     const moreAmenities = document.querySelector(
-      'div._3fa26637[aria-label="More amenities"]'
+      'div._3fa26637[aria-label="More amenities"]',
     );
 
     if (moreAmenities) {
@@ -125,11 +126,12 @@ async function scrapData(deviceId) {
       document
         .querySelectorAll("div._791bcb34, div._amenities")
         .forEach((cat) => {
-          const categoryName =
-            cat.querySelector("div._668d7c5b")?.textContent?.trim();
+          const categoryName = cat
+            .querySelector("div._668d7c5b")
+            ?.textContent?.trim();
 
           const items = Array.from(
-            cat.querySelectorAll("div.c20d971e span.c0327f5b, .amenity .name")
+            cat.querySelectorAll("div.c20d971e span.c0327f5b, .amenity .name"),
           )
             .map((e) => e.textContent?.trim())
             .filter(Boolean);
@@ -145,7 +147,7 @@ async function scrapData(deviceId) {
     } else {
       // Case 2: Flat list parsing (fallback)
       const items = Array.from(
-        document.querySelectorAll("div.c20d971e span.c0327f5b, .amenity .name")
+        document.querySelectorAll("div.c20d971e span.c0327f5b, .amenity .name"),
       )
         .map((e) => e.textContent?.trim())
         .filter(Boolean);
@@ -159,8 +161,8 @@ async function scrapData(deviceId) {
   };
 
   /**
-  * More reliable click simulation (handles JS event listeners)
-  */
+   * More reliable click simulation (handles JS event listeners)
+   */
   function realClick(el) {
     el.click(); // native click
     const evt = new MouseEvent("click", {
@@ -175,8 +177,8 @@ async function scrapData(deviceId) {
   }
 
   /**
-  * Scrape transaction history (tables inside "Similar Property Transactions" section)
-  */
+   * Scrape transaction history (tables inside "Similar Property Transactions" section)
+   */
   async function scrapeTransactions() {
     await wait(2000);
     // find the correct container
@@ -203,7 +205,7 @@ async function scrapData(deviceId) {
       if (!table) return [];
       // get headers text as array
       const headers = [...table.querySelectorAll("thead th")].map((h) =>
-        h.innerText.trim()
+        h.innerText.trim(),
       );
       const rows = table.querySelectorAll("tbody tr");
       return [...rows].map((row) => {
@@ -263,14 +265,14 @@ async function scrapData(deviceId) {
     // Selector for both main and thumbnail image containers
     const imageContainers = [
       document.querySelector("div._7be482e1"),
-      document.querySelector("div._2e756e1e")
+      document.querySelector("div._2e756e1e"),
     ];
 
-    imageContainers.forEach(container => {
+    imageContainers.forEach((container) => {
       if (!container) return;
 
       // Extract from <img src="...">
-      container.querySelectorAll("img").forEach(img => {
+      container.querySelectorAll("img").forEach((img) => {
         const src = img.getAttribute("src");
         if (src && src.startsWith("http")) {
           imageUrls.add(src);
@@ -278,7 +280,7 @@ async function scrapData(deviceId) {
       });
 
       // Also extract from <source srcset="..."> (e.g. webp)
-      container.querySelectorAll("source").forEach(source => {
+      container.querySelectorAll("source").forEach((source) => {
         const srcset = source.getAttribute("srcset");
         if (srcset && srcset.startsWith("http")) {
           imageUrls.add(srcset);
@@ -302,9 +304,10 @@ async function scrapData(deviceId) {
   const baths = document.querySelector('[aria-label="Baths"]')?.innerText;
 
   const areaNum = parseFloat((area || "").replace(/[^\d.]/g, "")) || null;
-  const perSqft = priceNum && areaNum
-    ? Number((Number(priceNum) / Number(areaNum)).toFixed(2))
-    : null;
+  const perSqft =
+    priceNum && areaNum
+      ? Number((Number(priceNum) / Number(areaNum)).toFixed(2))
+      : null;
 
   // Construct payload for API
   const payload = {
@@ -325,13 +328,16 @@ async function scrapData(deviceId) {
         text('[aria-label="Property description"]') || "No description",
       agent: text("a[aria-label='Agent name']") || text("div._91b12e4e"),
       offPlan: !!document.querySelector(
-        "div[role='button'][aria-label*='Off-plan']"
+        "div[role='button'][aria-label*='Off-plan']",
       ),
-      verified: !!document.querySelector("[aria-label='Property Verified Button']"),
+      verified: !!document.querySelector(
+        "[aria-label='Property Verified Button']",
+      ),
       amenities: getAmenities(),
-      propertyInformation: Object.keys(scrapeListSection("Property Information")).length === 0
-        ? robustScrapeListSection("Property Information")
-        : scrapeListSection("Property Information"),
+      propertyInformation:
+        Object.keys(scrapeListSection("Property Information")).length === 0
+          ? robustScrapeListSection("Property Information")
+          : scrapeListSection("Property Information"),
       buildingInformation: scrapeListSection("Building Information"),
       validatedInformation: scrapeListSection("Validated Information"),
       projectInformation: scrapeListSection("Project Information"),
@@ -345,21 +351,40 @@ async function scrapData(deviceId) {
   };
 
   // Send extracted data to the backend API
-  
- // --- Send with retry ---
+
+  // --- Send with retry ---
   async function sendWithRetry(payload, maxRetry = 3, delay = 5000) {
     for (let attempt = 1; attempt <= maxRetry; attempt++) {
       try {
-        const response = await fetch(`${API_BASE_URL}/property/bayut/`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+        // const response = await fetch(`${API_BASE_URL}/property/bayut/`, {
+        //   method: "POST",
+        //   headers: { "Content-Type": "application/json" },
+        //   body: JSON.stringify(payload),
+        // });
+
+        chrome.runtime.sendMessage(
+          {
+            type: "SEND_TO_API",
+            endpoint: "/property/bayut",
+            payload,
+          },
+          (response) => {
+            if (response?.success) {
+              reportScrapeSuccess();
+              window.close();
+            } else {
+              reportScrapeFailure();
+              console.error(response?.error);
+            }
+          },
+        );
 
         // Force error if API returns non-2xx
         if (!response.ok) {
           const errorText = await response.text().catch(() => "");
-          throw new Error(`API responded with ${response.status}: ${errorText}`);
+          throw new Error(
+            `API responded with ${response.status}: ${errorText}`,
+          );
         }
 
         const result = await response.json();
@@ -375,19 +400,41 @@ async function scrapData(deviceId) {
 
         if (attempt === maxRetry) {
           storeErrorInExtensionStorage(err, "Failed to send data to API");
-          await fetch(`${API_BASE_URL}/error/bayut`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              data: {
-                message: err.message || "Unknown error",
-                stack: err.stack || null,
-                url: window.location.href,
-                time: new Date().toISOString(),
-                context: "scrapData error",
+          // await fetch(`${API_BASE_URL}/error/bayut`, {
+          //   method: "POST",
+          //   headers: { "Content-Type": "application/json" },
+          //   body: JSON.stringify({
+          //     data: {
+          //       message: err.message || "Unknown error",
+          //       stack: err.stack || null,
+          //       url: window.location.href,
+          //       time: new Date().toISOString(),
+          //       context: "scrapData error",
+          //     },
+          //   }),
+          // });
+
+          chrome.runtime.sendMessage(
+            {
+              type: "SEND_ERROR_TO_API",
+              endpoint: `/error/bayut`,
+              payload: {
+                data: {
+                  message: err.message || "Unknown error",
+                  stack: err.stack || null,
+                  url: window.location.href,
+                  time: new Date().toISOString(),
+                  context: "scrapData → SEND_TO_API",
+                },
               },
-            }),
-          });
+            },
+            (response) => {
+              if (!response?.success) {
+                console.error("❌ Error API failed:", response?.error);
+              }
+            },
+          );
+
           reportScrapeFailure();
           console.log("closing window after failure");
           window.close();
