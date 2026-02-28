@@ -17,29 +17,8 @@ function storeErrorInExtensionStorage(error, context = "General") {
   });
 }
 
-// Waits until a DOM element matching `selector` appears (SPA / React pages render after `load`)
-const waitForElement = (selector, timeout = 15000) =>
-  new Promise((resolve) => {
-    if (document.querySelector(selector)) return resolve(true);
-    const observer = new MutationObserver(() => {
-      if (document.querySelector(selector)) {
-        observer.disconnect();
-        resolve(true);
-      }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-    setTimeout(() => {
-      observer.disconnect();
-      resolve(false);
-    }, timeout);
-  });
-
 async function scrapData(deviceId) {
   const text = (sel) => document.querySelector(sel)?.innerText?.trim() || null;
-
-  // PropertyFinder is a React SPA — wait for the price element to confirm the
-  // page has fully rendered before scraping, otherwise all selectors return null.
-  await waitForElement('[data-testid="property-price"]');
 
   chrome.storage.local.get("siteValue", (result) => {
     if (result.siteValue) {
